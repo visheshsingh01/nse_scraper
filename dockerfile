@@ -1,5 +1,7 @@
-# Install dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+FROM python:3.9-slim
+
+# Install Chrome dependencies
+RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     unzip \
@@ -16,10 +18,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrandr2 \
     libxtst6 \
     libxshmfence1 \
-    libgbm1 \
-    && rm -rf /var/lib/apt/lists/*
+    libgbm1
 
-# Install Google Chrome (New Method)
-RUN wget -q -O /usr/share/keyrings/google-chrome.gpg https://dl.google.com/linux/linux_signing_key.pub && \
-    echo "deb [signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && apt-get install -y google-chrome-stable
+# Install Chrome
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY app.py .
+
+# Modify the code to always use headless mode on Render
+RUN sed -i 's/setup_driver(headless=False)/setup_driver(headless=True)/g' app.py
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
+# Expose port
+EXPOSE 8080
+
+# Run the application with Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
