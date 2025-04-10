@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import urllib.parse
+import random
 import json
 import pandas as pd
 from flask import Flask, render_template_string
@@ -18,17 +19,18 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 app = Flask(__name__)
 
 def setup_driver(headless=True):
-    """Set up Selenium Chrome WebDriver."""
+    """Set up a Selenium Chrome WebDriver with optimizations for Docker & anti-bot measures."""
     options = webdriver.ChromeOptions()
-    
-    # ✅ Essential arguments for Docker & low-memory environments
+
+    # ✅ Essential arguments for running in Docker & Render
     options.add_argument("--no-sandbox")  
     options.add_argument("--disable-dev-shm-usage")  
     options.add_argument("--disable-gpu")  
+    options.add_argument("--disable-software-rasterizer")
     options.add_argument("--disable-notifications")
     options.add_argument("--disable-blink-features=AutomationControlled")  
     options.add_argument("--log-level=3")  
-    options.add_argument("--start-maximized")  
+    options.add_argument("--start-maximized")
 
     if headless:
         options.add_argument("--headless=new")  
@@ -36,16 +38,26 @@ def setup_driver(headless=True):
     # ✅ Prevent multiple instances from using the same Chrome profile
     options.add_argument(f"--user-data-dir=/tmp/chrome-user-data-{int(time.time())}")
 
-    # ✅ Set a Real User-Agent to Bypass Detection
-    options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36"
-    )
+    # ✅ Rotate User-Agent to bypass detection
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+    ]
+    random_user_agent = random.choice(user_agents)
+    options.add_argument(f"user-agent={random_user_agent}")
 
-    service = Service(ChromeDriverManager().install())
+    # ✅ Explicitly set Chrome binary & Chromedriver path in Docker
+    chrome_binary = os.getenv("CHROMIUM_PATH", "/usr/bin/chromium")
+    chromedriver_path = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
+    
+    options.binary_location = chrome_binary
+
+    service = Service(chromedriver_path if os.path.exists(chromedriver_path) else ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
 
     return driver
-
 
 def navigate_to_nse(driver, url="https://www.nseindia.com/option-chain"):
     """Navigate to the NSE Option Chain page."""
