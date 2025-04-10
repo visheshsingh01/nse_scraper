@@ -19,26 +19,25 @@ app = Flask(__name__)
 
 def setup_driver(headless=True):
     """Set up Selenium Chrome WebDriver."""
-    import os
-    import tempfile
-    
     options = webdriver.ChromeOptions()
     options.add_argument("--ignore-certificate-errors")
     options.add_argument("--log-level=3")
     
-    # Always use headless mode on Render
-    options.add_argument("--headless")
+    if headless:
+        options.add_argument("--headless=new")  # ✅ Use new headless mode
+    
     options.add_argument("--disable-notifications")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    
-    # Create a unique user data directory for each Chrome instance
-    user_data_dir = tempfile.mkdtemp()
-    options.add_argument(f"--user-data-dir={user_data_dir}")
-    
-    # Use ChromeDriverManager to get the correct driver
+    options.add_argument("--disable-blink-features=AutomationControlled")  # ✅ Prevent bot detection
+    options.add_argument("--start-maximized")
+
+    # ✅ Set a Real User-Agent to Bypass Detection
+    options.add_argument(
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36"
+    )
+
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     return driver
+
 
 def navigate_to_nse(driver, url="https://www.nseindia.com/option-chain"):
     """Navigate to the NSE Option Chain page."""
@@ -64,7 +63,7 @@ def clean_number(value):
 def extract_selected_columns(driver, center_row=41, range_size=9):
     """Extract selected rows and columns from the NSE Option Chain table."""
     try:
-        table = driver.find_element(By.CSS_SELECTOR, "table#optionChainTable-indices")
+        table = WebDriverWait(driver,20).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "table#optionChainTable-indices")))
         table_body = table.find_element(By.TAG_NAME, "tbody")
         rows = table_body.find_elements(By.TAG_NAME, "tr")
         start_row = center_row - range_size
