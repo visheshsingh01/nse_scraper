@@ -21,32 +21,31 @@ def setup_driver(headless=True):
     """Set up Selenium Chrome WebDriver."""
     options = webdriver.ChromeOptions()
     
-    # ✅ Fix user-data-dir issue by using a unique temp directory
-    options.add_argument(f"--user-data-dir=/tmp/chrome-user-data-{int(time.time())}")
-
-    # ✅ Common arguments
-    options.add_argument("--ignore-certificate-errors")
-    options.add_argument("--log-level=3")
+    # ✅ Essential arguments for Docker & low-memory environments
+    options.add_argument("--no-sandbox")  
+    options.add_argument("--disable-dev-shm-usage")  
+    options.add_argument("--disable-gpu")  
     options.add_argument("--disable-notifications")
-    options.add_argument("--disable-blink-features=AutomationControlled")  # Prevent bot detection
-    options.add_argument("--start-maximized")
-    options.add_argument("--no-sandbox")  # ✅ Required for running in Docker
-    options.add_argument("--disable-dev-shm-usage")  # ✅ Prevent memory issues in Docker
-    options.add_argument("--disable-gpu")  # ✅ Ensure stability
+    options.add_argument("--disable-blink-features=AutomationControlled")  
+    options.add_argument("--log-level=3")  
+    options.add_argument("--start-maximized")  
 
     if headless:
-        options.add_argument("--headless=new")  # ✅ Required for new headless mode
+        options.add_argument("--headless=new")  
+
+    # ✅ Prevent multiple instances from using the same Chrome profile
+    options.add_argument(f"--user-data-dir=/tmp/chrome-user-data-{int(time.time())}")
 
     # ✅ Set a Real User-Agent to Bypass Detection
     options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36"
     )
 
-    # ✅ Ensure ChromeDriver is installed correctly
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
-    
+
     return driver
+
 
 def navigate_to_nse(driver, url="https://www.nseindia.com/option-chain"):
     """Navigate to the NSE Option Chain page."""
