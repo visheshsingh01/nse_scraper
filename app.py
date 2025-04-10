@@ -29,8 +29,10 @@ def setup_driver(headless=True):
     options.add_argument("--disable-notifications")
     options.add_argument("--disable-blink-features=AutomationControlled")  # ✅ Prevent bot detection
     options.add_argument("--start-maximized")
+    
 
-    options.add_argument(f"--user-data-dir=/tmp/chrome-user-data-{time.time()}")
+    options.add_argument(f"--user-data-dir=/tmp/chrome-user-data-{int(time.time())}")
+
 
     # ✅ Set a Real User-Agent to Bypass Detection
     options.add_argument(
