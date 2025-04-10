@@ -36,9 +36,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app.py .
 
-# Modify the code to always use headless mode on Render
-RUN sed -i 's/setup_driver(headless=False)/setup_driver(headless=True)/g' app.py
-
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 

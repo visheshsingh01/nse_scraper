@@ -17,15 +17,26 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 app = Flask(__name__)
 
-def setup_driver(headless=False):
+def setup_driver(headless=True):
     """Set up Selenium Chrome WebDriver."""
+    import os
+    import tempfile
+    
     options = webdriver.ChromeOptions()
     options.add_argument("--ignore-certificate-errors")
     options.add_argument("--log-level=3")
-    if headless:
-        options.add_argument("--headless")
+    
+    # Always use headless mode on Render
+    options.add_argument("--headless")
     options.add_argument("--disable-notifications")
-    options.add_argument("start-maximized")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    
+    # Create a unique user data directory for each Chrome instance
+    user_data_dir = tempfile.mkdtemp()
+    options.add_argument(f"--user-data-dir={user_data_dir}")
+    
+    # Use ChromeDriverManager to get the correct driver
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     return driver
 
@@ -89,15 +100,23 @@ def scroll_page(driver, target_ads=10, max_scrolls=10):
 
 @app.route("/")
 def index():
-    # Initialize and run the scraper
-    driver = setup_driver(headless=False)
-    navigate_to_nse(driver)
-    data = extract_selected_columns(driver, center_row=41, range_size=9)
-    driver.quit()
+    driver = None
+    data = []
+    try:
+        # Initialize and run the scraper
+        driver = setup_driver(headless=True)
+        navigate_to_nse(driver)
+        data = extract_selected_columns(driver, center_row=41, range_size=9)
+    except Exception as e:
+        logging.error("Error in scraper: %s", e)
+    finally:
+        # Make sure the driver is always properly closed
+        if driver:
+            try:
+                driver.quit()
+            except:
+                pass
     
-    if not data:
-        data = []
-        
     # Define a simple HTML template to show data in a table
     html_template = """
     <!doctype html>
@@ -143,12 +162,13 @@ def index():
             </tbody>
         </table>
         {% else %}
-            <p>No data found.</p>
+            <p>No data found or error occurred during scraping.</p>
         {% endif %}
       </body>
     </html>
     """
     return render_template_string(html_template, data=data)
+    
 
 if __name__ == "__main__":
     app.run(debug=True)
