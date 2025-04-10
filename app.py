@@ -20,28 +20,33 @@ app = Flask(__name__)
 def setup_driver(headless=True):
     """Set up Selenium Chrome WebDriver."""
     options = webdriver.ChromeOptions()
-    options.add_argument("--ignore-certificate-errors")
-    options.add_argument("--log-level=3")
     
-    if headless:
-        options.add_argument("--headless=new")  # ✅ Use new headless mode
-    
-    options.add_argument("--disable-notifications")
-    options.add_argument("--disable-blink-features=AutomationControlled")  # ✅ Prevent bot detection
-    options.add_argument("--start-maximized")
-    
-
+    # ✅ Fix user-data-dir issue by using a unique temp directory
     options.add_argument(f"--user-data-dir=/tmp/chrome-user-data-{int(time.time())}")
 
+    # ✅ Common arguments
+    options.add_argument("--ignore-certificate-errors")
+    options.add_argument("--log-level=3")
+    options.add_argument("--disable-notifications")
+    options.add_argument("--disable-blink-features=AutomationControlled")  # Prevent bot detection
+    options.add_argument("--start-maximized")
+    options.add_argument("--no-sandbox")  # ✅ Required for running in Docker
+    options.add_argument("--disable-dev-shm-usage")  # ✅ Prevent memory issues in Docker
+    options.add_argument("--disable-gpu")  # ✅ Ensure stability
+
+    if headless:
+        options.add_argument("--headless=new")  # ✅ Required for new headless mode
 
     # ✅ Set a Real User-Agent to Bypass Detection
     options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36"
     )
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    # ✅ Ensure ChromeDriver is installed correctly
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
+    
     return driver
-
 
 def navigate_to_nse(driver, url="https://www.nseindia.com/option-chain"):
     """Navigate to the NSE Option Chain page."""
