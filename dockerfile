@@ -45,4 +45,4 @@ ENV PYTHONUNBUFFERED=1 \
 EXPOSE 8080
 
 # Run the application with Gunicorn (only 1 worker to save memory)
-CMD ["gunicorn", "--workers", "1", "--timeout", "120", "--bind", "0.0.0.0:8080", "app:app"]
+CMD gunicorn --workers 1 --timeout 120 --bind 0.0.0.0:$PORT app:app --log-level debug
