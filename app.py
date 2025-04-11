@@ -1,3 +1,4 @@
+# app.py
 import os
 import time
 import random
@@ -8,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -18,18 +20,22 @@ def setup_driver(headless=True):
     """Set up a Selenium Chrome WebDriver with optimizations for Docker & anti-bot measures."""
     options = webdriver.ChromeOptions()
 
-    # ✅ Essential arguments for running in Docker
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
+    # ✅ Essential arguments for running in Docker & Render
+    options.add_argument("--no-sandbox")  
+    options.add_argument("--disable-dev-shm-usage")  
+    options.add_argument("--disable-gpu")  
     options.add_argument("--disable-software-rasterizer")
     options.add_argument("--disable-notifications")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--log-level=3")
+    options.add_argument("--disable-blink-features=AutomationControlled")  
+    options.add_argument("--log-level=3")  
     options.add_argument("--start-maximized")
+    options.add_argument("--ignore-certificate-errors")
 
     if headless:
-        options.add_argument("--headless=new")  # ✅ Enable headless mode
+        options.add_argument("--headless=new")  
+
+    # ✅ Prevent multiple instances from using the same Chrome profile
+    options.add_argument(f"--user-data-dir=/tmp/chrome-user-data-{int(time.time())}")
 
     # ✅ Rotate User-Agent to bypass detection
     user_agents = [
@@ -41,24 +47,39 @@ def setup_driver(headless=True):
     random_user_agent = random.choice(user_agents)
     options.add_argument(f"user-agent={random_user_agent}")
 
-    chrome_path = os.getenv("GOOGLE_CHROME_BIN", "/usr/bin/google-chrome")
-    driver_path = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
+    # ✅ Explicitly set Chrome binary & Chromedriver path in Docker
+    chrome_binary = os.getenv("CHROMIUM_PATH", "/usr/bin/chromium")
+    chromedriver_path = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
+    
+    options.binary_location = chrome_binary if os.path.exists(chrome_binary) else ""
 
-
-    service = Service(driver_path)
+    # Use ChromeDriverManager as fallback if path doesn't exist
+    if os.path.exists(chromedriver_path):
+        service = Service(chromedriver_path)
+    else:
+        service = Service(ChromeDriverManager().install())
+    
     driver = webdriver.Chrome(service=service, options=options)
-
+    
+    # Additional anti-detection measures
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    
     return driver
 
 def navigate_to_nse(driver, url="https://www.nseindia.com/option-chain"):
     """Navigate to the NSE Option Chain page."""
     try:
+        # Add random delay to simulate human behavior
+        time.sleep(random.uniform(1, 3))
+        
         driver.get(url)
-        WebDriverWait(driver, 15).until(
+        WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.TAG_NAME, "table"))
         )
         logging.info("✅ Page loaded successfully!")
-        time.sleep(5)  # Allow dynamic content to load
+        
+        # Random wait time to allow dynamic content to load fully
+        time.sleep(random.uniform(3, 7))
         return True
     except Exception as e:
         logging.error("❌ Error loading page: %s", e)
@@ -142,11 +163,10 @@ def index():
     driver = setup_driver(headless=True)
     
     data = []
-    try:
-        if navigate_to_nse(driver):
-            data = extract_selected_columns(driver)
-    finally:
-        driver.quit()
+    if navigate_to_nse(driver):
+        data = extract_selected_columns(driver)
+    
+    driver.quit()
     
     if not data:
         data = []
@@ -203,8 +223,7 @@ def index():
     """
     return render_template_string(html_template, data=data)
 
-# Get port from environment variable for Render compatibility
-port = int(os.environ.get("PORT", 8080))
-
 if __name__ == "__main__":
+    # Get port from environment variable (Render sets this)
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

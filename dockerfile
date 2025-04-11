@@ -1,46 +1,56 @@
-# Use an official lightweight Python image
-FROM python:3.11-slim
+FROM python:3.10-slim
 
-# Install dependencies and Chromium
-RUN apt-get update && apt-get install -y \
-    curl \
-    unzip \
-    wget \
-    chromium \
-    libnss3 \
-    libgconf-2-4 \
-    libxss1 \
-    libappindicator3-1 \
-    libasound2 \
-    xdg-utils \
-    fonts-liberation \
-    libgbm1 \
-    libu2f-udev \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Download and install the latest ChromeDriver
-RUN CHROMEDRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE) && \
-    wget -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" -O /tmp/chromedriver.zip && \
-    unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
-    rm /tmp/chromedriver.zip && \
-    chmod +x /usr/local/bin/chromedriver
-
-# Set environment variables
-ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
-ENV GOOGLE_CHROME_BIN=/usr/bin/chromium
-
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy the project files
-COPY . .
+# Install Chrome and required dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    unzip \
+    gnupg \
+    curl \
+    apt-transport-https \
+    ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-6 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    xdg-utils \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Chromium browser and ChromeDriver
+RUN apt-get update && apt-get install -y chromium chromium-driver
+
+# Set environment variables for Chrome and ChromeDriver
+ENV CHROMIUM_PATH=/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the port
+# Copy application code
+COPY app.py .
+
+# Expose port
 EXPOSE 5000
 
-# Run the application with Gunicorn (better for production)
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
+# Run the application
+CMD ["python", "app.py"]
