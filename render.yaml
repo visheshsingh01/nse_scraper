@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: nse-option-chain-scraper
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: 1

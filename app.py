@@ -8,7 +8,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -19,7 +18,7 @@ def setup_driver(headless=True):
     """Set up a Selenium Chrome WebDriver with optimizations for Docker & anti-bot measures."""
     options = webdriver.ChromeOptions()
 
-    # ✅ Essential arguments for running in Docker & Render
+    # ✅ Essential arguments for running in Docker
     options.add_argument("--no-sandbox")  
     options.add_argument("--disable-dev-shm-usage")  
     options.add_argument("--disable-gpu")  
@@ -42,8 +41,14 @@ def setup_driver(headless=True):
     random_user_agent = random.choice(user_agents)
     options.add_argument(f"user-agent={random_user_agent}")
 
-    # ✅ Set up ChromeDriver service correctly
-    service = Service(ChromeDriverManager().install())
+    # ✅ Set Chrome binary path if in Docker
+    chrome_path = os.environ.get('CHROME_PATH')
+    if chrome_path:
+        options.binary_location = chrome_path
+
+    # ✅ Set up ChromeDriver service correctly (using fixed path in Docker)
+    chromedriver_path = os.environ.get('CHROMEDRIVER_PATH', '/usr/local/bin/chromedriver')
+    service = Service(executable_path=chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
     return driver
@@ -203,7 +208,7 @@ def index():
     return render_template_string(html_template, data=data)
 
 # Get port from environment variable for Render compatibility
-port = int(os.environ.get("PORT", 5000))
+port = int(os.environ.get("PORT", 8080))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port)
