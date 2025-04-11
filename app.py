@@ -47,7 +47,8 @@ def setup_driver(headless=True):
         options.binary_location = chrome_path
 
     # ✅ Set up ChromeDriver service correctly (using fixed path in Docker)
-    chromedriver_path = os.environ.get('CHROMEDRIVER_PATH', '/usr/local/bin/chromedriver')
+    chromedriver_path = chromedriver_path = "/usr/local/bin/chromedriver"
+
     service = Service(executable_path=chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
