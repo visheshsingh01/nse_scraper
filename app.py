@@ -17,54 +17,56 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 app = Flask(__name__)
 
 def setup_driver(headless=True):
-    """Set up a Selenium Chrome WebDriver with optimizations for Docker & anti-bot measures."""
+    """Set up a Selenium Chrome WebDriver for Docker environments with limited resources."""
     options = webdriver.ChromeOptions()
-
-    # ✅ Essential arguments for running in Docker & Render
-    options.add_argument("--no-sandbox")  
-    options.add_argument("--disable-dev-shm-usage")  
-    options.add_argument("--disable-gpu")  
+    
+    # Essential Chrome flags for Docker/containerized environments
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-extensions")
     options.add_argument("--disable-software-rasterizer")
+    options.add_argument("--headless=new")
     options.add_argument("--disable-notifications")
-    options.add_argument("--disable-blink-features=AutomationControlled")  
-    options.add_argument("--log-level=3")  
-    options.add_argument("--start-maximized")
     options.add_argument("--ignore-certificate-errors")
-
-    if headless:
-        options.add_argument("--headless=new")  
-
-    # ✅ Prevent multiple instances from using the same Chrome profile
-    options.add_argument(f"--user-data-dir=/tmp/chrome-user-data-{int(time.time())}")
-
-    # ✅ Rotate User-Agent to bypass detection
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
-    ]
-    random_user_agent = random.choice(user_agents)
-    options.add_argument(f"user-agent={random_user_agent}")
-
-    # ✅ Explicitly set Chrome binary & Chromedriver path in Docker
-    chrome_binary = os.getenv("CHROMIUM_PATH", "/usr/bin/chromium")
-    chromedriver_path = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
     
-    options.binary_location = chrome_binary if os.path.exists(chrome_binary) else ""
-
-    # Use ChromeDriverManager as fallback if path doesn't exist
-    if os.path.exists(chromedriver_path):
-        service = Service(chromedriver_path)
-    else:
-        service = Service(ChromeDriverManager().install())
+    # Memory/resource optimization - very important for free tier
+    options.add_argument("--disable-dev-tools")
+    options.add_argument("--disable-browser-side-navigation")
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--remote-debugging-port=9222")
+    options.add_argument("--single-process")  # Critical for limited memory
+    options.add_argument("--disable-infobars")
     
-    driver = webdriver.Chrome(service=service, options=options)
+    # Anti-bot measures
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36")
     
-    # Additional anti-detection measures
-    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    # Path handling for Docker environment
+    chrome_binary = "/usr/bin/chromium"
+    chromedriver_path = "/usr/bin/chromedriver"
     
-    return driver
+    # Ensure binary location is set if the file exists
+    if os.path.exists(chrome_binary):
+        options.binary_location = chrome_binary
+    
+    # Create service with proper error handling
+    try:
+        if os.path.exists(chromedriver_path):
+            service = Service(chromedriver_path)
+        else:
+            service = Service(ChromeDriverManager().install())
+            
+        driver = webdriver.Chrome(service=service, options=options)
+        
+        # Set page load timeout to prevent hanging
+        driver.set_page_load_timeout(30)
+        
+        return driver
+    except Exception as e:
+        logging.error(f"Failed to initialize Chrome driver: {e}")
+        # Return a more helpful error message
+        raise Exception(f"Chrome driver initialization failed. This often happens on limited resource environments. Error: {e}")
 
 def navigate_to_nse(driver, url="https://www.nseindia.com/option-chain"):
     """Navigate to the NSE Option Chain page."""
