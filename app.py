@@ -80,62 +80,83 @@ def clean_number(value):
             return 0
     return 0
 
-def extract_selected_columns(driver, center_row=41, range_size=9):
-    """Extract selected rows and columns from the NSE Option Chain table."""
+def extract_selected_columns(driver):
+    """Extract rows based on color marking in specific columns:
+       - Scenario 1: When the second column in a row does NOT have 'bg-yellow',
+         extract the 9 rows immediately above that row.
+       - Scenario 2: When the second column in a row does NOT have 'bg-yellow' 
+         but the 13th column DOES have 'bg-yellow', extract that row and the next 8 rows.
+       
+       For each extracted row, we extract columns 2-5 and the last 4 columns.
+    """
     try:
-        table = WebDriverWait(driver,20).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "table#optionChainTable-indices")))
+        table = WebDriverWait(driver, 30).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, "table#optionChainTable-indices"))
+        )
         table_body = table.find_element(By.TAG_NAME, "tbody")
         rows = table_body.find_elements(By.TAG_NAME, "tr")
-        start_row = center_row - range_size
-        end_row = center_row + range_size
+        
         extracted_data = []
-        # Loop through the desired range (adjusting for zero-based index)
-        for index in range(start_row - 1, end_row):
-            columns = rows[index].find_elements(By.TAG_NAME, "td")
-            if len(columns) >= 10:
-                # Extract columns 2-5 and the last 4 columns (you may adjust these as needed)
-                selected_columns = [col.text.strip() for col in columns[1:5] + columns[-5:-1]]
-                extracted_data.append(selected_columns)
+        scenario1_done = False
+        scenario2_done = False
+
+        # Iterate through every row by index
+        for i, row in enumerate(rows):
+            cells = row.find_elements(By.TAG_NAME, "td")
+            if len(cells) < 13:
+                # Skip rows that don't have enough columns to check scenario 2
+                continue
+
+            # Scenario 1: Check if second column does NOT have "bg-yellow"
+            col2_class = cells[1].get_attribute("class")
+            if not scenario1_done and "bg-yellow" not in col2_class:
+                if i >= 9:  # Ensure there are 9 rows above
+                    for j in range(i - 9, i):
+                        r = rows[j]
+                        cols = r.find_elements(By.TAG_NAME, "td")
+                        if len(cols) >= 10:
+                            # Extract columns 2-5 and the last 4 columns
+                            data_row = [col.text.strip() for col in cols[1:5] + cols[-5:-1]]
+                            extracted_data.append(data_row)
+                    scenario1_done = True
+
+            # Scenario 2: Check if col2 does NOT have "bg-yellow" and col13 DOES have "bg-yellow"
+            col13_class = cells[12].get_attribute("class")
+            if not scenario2_done and ("bg-yellow" not in col2_class) and ("bg-yellow" in col13_class):
+                # Extract 9 rows starting with current row, if available
+                end_index = min(i + 9, len(rows))
+                for j in range(i, end_index):
+                    r = rows[j]
+                    cols = r.find_elements(By.TAG_NAME, "td")
+                    if len(cols) >= 10:
+                        data_row = [col.text.strip() for col in cols[1:5] + cols[-5:-1]]
+                        extracted_data.append(data_row)
+                scenario2_done = True
+
+            # If both scenarios are done, we can exit early
+            if scenario1_done and scenario2_done:
+                break
+
         logging.info("✅ Extracted %s rows successfully!", len(extracted_data))
         return extracted_data
     except Exception as e:
         logging.error("❌ Error extracting data: %s", e)
         return None
 
-# Optional: A scrolling function if needed (can be improved further)
-def scroll_page(driver, target_ads=10, max_scrolls=10):
-    ad_selector = "div.x193iq5w.xxymvpz.xeuugli.x78zum5.x1iyjqo2.xs83m0k.x1d52u69.xktsk01.x1yztbdb.x1gslohp"
-    last_count = len(driver.find_elements(By.CSS_SELECTOR, ad_selector))
-    for i in range(max_scrolls):
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
-        current_count = len(driver.find_elements(By.CSS_SELECTOR, ad_selector))
-        if current_count >= target_ads:
-            break
-        if current_count == last_count:
-            break
-        last_count = current_count
-    logging.info("Scrolling finished. Total elements found: %s", last_count)
-
 @app.route("/")
 def index():
-    driver = None
-    data = []
-    try:
-        # Initialize and run the scraper
-        driver = setup_driver(headless=True)
-        navigate_to_nse(driver)
-        data = extract_selected_columns(driver, center_row=41, range_size=9)
-    except Exception as e:
-        logging.error("Error in scraper: %s", e)
-    finally:
-        # Make sure the driver is always properly closed
-        if driver:
-            try:
-                driver.quit()
-            except:
-                pass
+    # Initialize and run the scraper
+    driver = setup_driver(headless=False)
     
+    data = []
+    if navigate_to_nse(driver):
+        data = extract_selected_columns(driver)
+    
+    driver.quit()
+    
+    if not data:
+        data = []
+        
     # Define a simple HTML template to show data in a table
     html_template = """
     <!doctype html>
@@ -181,7 +202,7 @@ def index():
             </tbody>
         </table>
         {% else %}
-            <p>No data found or error occurred during scraping.</p>
+            <p>No data found.</p>
         {% endif %}
       </body>
     </html>
