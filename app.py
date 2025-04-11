@@ -41,13 +41,11 @@ def setup_driver(headless=True):
     random_user_agent = random.choice(user_agents)
     options.add_argument(f"user-agent={random_user_agent}")
 
-    # ✅ Set Chrome binary path for Render Free Tier
-    options.binary_location = os.environ.get('GOOGLE_CHROME_BIN', '/usr/bin/chromium')
+    chrome_path = os.getenv("GOOGLE_CHROME_BIN", "/usr/bin/google-chrome")
+    driver_path = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
 
-    # ✅ Set up ChromeDriver path
-    chromedriver_path = os.environ.get('CHROMEDRIVER_PATH', '/usr/bin/chromedriver')
 
-    service = Service(executable_path=chromedriver_path)
+    service = Service(chrome_path)
     driver = webdriver.Chrome(service=service, options=options)
 
     return driver
