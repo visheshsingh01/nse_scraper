@@ -1,11 +1,13 @@
 # Use an official lightweight Python image
 FROM python:3.11-slim
 
-# Install dependencies
+# Install dependencies and Chromium
 RUN apt-get update && apt-get install -y \
     curl \
     unzip \
     wget \
+    chromium \
+    chromium-driver \
     libnss3 \
     libgconf-2-4 \
     libxss1 \
@@ -18,22 +20,9 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome
-RUN wget -q -O chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    && dpkg -i chrome.deb || apt-get -fy install \
-    && rm chrome.deb
-
-# Install ChromeDriver
-RUN CHROME_VERSION=$(google-chrome --version | grep -oP '[0-9.]+' | head -1) && \
-    CHROMEDRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION) && \
-    wget -q "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip" -O /tmp/chromedriver.zip && \
-    unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
-    rm /tmp/chromedriver.zip && \
-    chmod +x /usr/local/bin/chromedriver
-
 # Set environment variables
-ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
-ENV GOOGLE_CHROME_BIN=/usr/bin/google-chrome
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
+ENV GOOGLE_CHROME_BIN=/usr/bin/chromium
 
 # Set the working directory
 WORKDIR /app

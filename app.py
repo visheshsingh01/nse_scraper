@@ -19,13 +19,13 @@ def setup_driver(headless=True):
     options = webdriver.ChromeOptions()
 
     # ✅ Essential arguments for running in Docker
-    options.add_argument("--no-sandbox")  
-    options.add_argument("--disable-dev-shm-usage")  
-    options.add_argument("--disable-gpu")  
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
     options.add_argument("--disable-software-rasterizer")
     options.add_argument("--disable-notifications")
-    options.add_argument("--disable-blink-features=AutomationControlled")  
-    options.add_argument("--log-level=3")  
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--log-level=3")
     options.add_argument("--start-maximized")
 
     if headless:
@@ -41,19 +41,16 @@ def setup_driver(headless=True):
     random_user_agent = random.choice(user_agents)
     options.add_argument(f"user-agent={random_user_agent}")
 
-    # ✅ Set Chrome binary path if in Docker
-    chrome_path = os.environ.get('CHROME_PATH')
-    if chrome_path:
-        options.binary_location = chrome_path
+    # ✅ Set Chrome binary path for Render Free Tier
+    options.binary_location = os.environ.get('GOOGLE_CHROME_BIN', '/usr/bin/chromium')
 
-    # ✅ Set up ChromeDriver service correctly (using fixed path in Docker)
-    chromedriver_path = chromedriver_path = "/usr/local/bin/chromedriver"
+    # ✅ Set up ChromeDriver path
+    chromedriver_path = os.environ.get('CHROMEDRIVER_PATH', '/usr/bin/chromedriver')
 
     service = Service(executable_path=chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
     return driver
-
 
 def navigate_to_nse(driver, url="https://www.nseindia.com/option-chain"):
     """Navigate to the NSE Option Chain page."""
