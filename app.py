@@ -19,8 +19,8 @@ app = Flask(__name__)
 def setup_driver(headless=True):
     """Set up a Selenium Chrome WebDriver for Docker environments with limited resources."""
     options = webdriver.ChromeOptions()
-    
-    # Essential Chrome flags for Docker/containerized environments
+
+    # Essential Chrome flags for containerized environments
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
@@ -29,14 +29,15 @@ def setup_driver(headless=True):
     options.add_argument("--headless=new")
     options.add_argument("--disable-notifications")
     options.add_argument("--ignore-certificate-errors")
-    
-    # Memory/resource optimization - very important for free tier
+
+    # Memory & resource optimization
     options.add_argument("--disable-dev-tools")
     options.add_argument("--disable-browser-side-navigation")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--remote-debugging-port=9222")
-    options.add_argument("--single-process")  # Critical for limited memory
     options.add_argument("--disable-infobars")
+    options.add_argument("--disable-background-timer-throttling")
+    options.add_argument("--disable-backgrounding-occluded-windows")
+    options.add_argument("--disable-breakpad")
+    options.add_argument("--disable-accelerated-2d-canvas")
     
     # Anti-bot measures
     options.add_argument("--disable-blink-features=AutomationControlled")
