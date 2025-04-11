@@ -1,10 +1,7 @@
 import os
 import time
-import logging
-import urllib.parse
 import random
-import json
-import pandas as pd
+import logging
 from flask import Flask, render_template_string
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -33,10 +30,7 @@ def setup_driver(headless=True):
     options.add_argument("--start-maximized")
 
     if headless:
-        options.add_argument("--headless=new")  
-
-    # ✅ Prevent multiple instances from using the same Chrome profile
-    options.add_argument(f"--user-data-dir=/tmp/chrome-user-data-{int(time.time())}")
+        options.add_argument("--headless=new")  # ✅ Enable headless mode
 
     # ✅ Rotate User-Agent to bypass detection
     user_agents = [
@@ -48,28 +42,26 @@ def setup_driver(headless=True):
     random_user_agent = random.choice(user_agents)
     options.add_argument(f"user-agent={random_user_agent}")
 
-    # ✅ Explicitly set Chrome binary & Chromedriver path in Docker
-    chrome_binary = os.getenv("CHROMIUM_PATH", "/usr/bin/chromium")
-    chromedriver_path = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
-    
-    options.binary_location = chrome_binary
-
-    service = Service(chromedriver_path if os.path.exists(chromedriver_path) else ChromeDriverManager().install())
+    # ✅ Set up ChromeDriver service correctly
+    service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
 
     return driver
+
 
 def navigate_to_nse(driver, url="https://www.nseindia.com/option-chain"):
     """Navigate to the NSE Option Chain page."""
     try:
         driver.get(url)
-        WebDriverWait(driver, 10).until(
+        WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.TAG_NAME, "table"))
         )
         logging.info("✅ Page loaded successfully!")
         time.sleep(5)  # Allow dynamic content to load
+        return True
     except Exception as e:
         logging.error("❌ Error loading page: %s", e)
+        return False
 
 def clean_number(value):
     """Convert formatted string numbers to integer."""
@@ -149,10 +141,11 @@ def index():
     driver = setup_driver(headless=True)
     
     data = []
-    if navigate_to_nse(driver):
-        data = extract_selected_columns(driver)
-    
-    driver.quit()
+    try:
+        if navigate_to_nse(driver):
+            data = extract_selected_columns(driver)
+    finally:
+        driver.quit()
     
     if not data:
         data = []
@@ -208,9 +201,9 @@ def index():
     </html>
     """
     return render_template_string(html_template, data=data)
-    
+
+# Get port from environment variable for Render compatibility
+port = int(os.environ.get("PORT", 5000))
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    print(f"Starting server on port {port}")
     app.run(host="0.0.0.0", port=port)
