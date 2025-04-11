@@ -45,7 +45,7 @@ def setup_driver(headless=True):
     driver_path = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
 
 
-    service = Service(chrome_path)
+    service = Service(driver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
     return driver
