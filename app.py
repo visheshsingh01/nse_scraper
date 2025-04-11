@@ -1,6 +1,7 @@
-# app.py
-import os
+
+
 import time
+import os 
 import random
 import logging
 from flask import Flask, render_template_string
@@ -17,72 +18,49 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 app = Flask(__name__)
 
 def setup_driver(headless=True):
-    """Set up a Selenium Chrome WebDriver for Docker environments with limited resources."""
+    """Set up a Selenium Chrome WebDriver optimized for Docker/Render."""
     options = webdriver.ChromeOptions()
-
-    # Essential Chrome flags for containerized environments
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--disable-extensions")
+    
+    # ✅ Docker & headless mode optimizations
+    options.add_argument("--no-sandbox")  
+    options.add_argument("--disable-dev-shm-usage")  
+    options.add_argument("--disable-gpu")  
     options.add_argument("--disable-software-rasterizer")
-    options.add_argument("--headless=new")
     options.add_argument("--disable-notifications")
-    options.add_argument("--ignore-certificate-errors")
+    options.add_argument("--disable-blink-features=AutomationControlled")  
+    options.add_argument("--log-level=3")  
+    options.add_argument("--start-maximized")
 
-    # Memory & resource optimization
-    options.add_argument("--disable-dev-tools")
-    options.add_argument("--disable-browser-side-navigation")
-    options.add_argument("--disable-infobars")
-    options.add_argument("--disable-background-timer-throttling")
-    options.add_argument("--disable-backgrounding-occluded-windows")
-    options.add_argument("--disable-breakpad")
-    options.add_argument("--disable-accelerated-2d-canvas")
+    if headless:
+        options.add_argument("--headless=new")  
+
+    # ✅ Rotate User-Agent to bypass detection
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+    ]
+    random_user_agent = random.choice(user_agents)
+    options.add_argument(f"--user-agent={random_user_agent}")
+
+    # ✅ Set Chrome binary & Chromedriver paths
     
-    # Anti-bot measures
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.84 Safari/537.36")
     
-    # Path handling for Docker environment
-    chrome_binary = "/usr/bin/chromium"
-    chromedriver_path = "/usr/bin/chromedriver"
-    
-    # Ensure binary location is set if the file exists
-    if os.path.exists(chrome_binary):
-        options.binary_location = chrome_binary
-    
-    # Create service with proper error handling
-    try:
-        if os.path.exists(chromedriver_path):
-            service = Service(chromedriver_path)
-        else:
-            service = Service(ChromeDriverManager().install())
-            
-        driver = webdriver.Chrome(service=service, options=options)
-        
-        # Set page load timeout to prevent hanging
-        driver.set_page_load_timeout(30)
-        
-        return driver
-    except Exception as e:
-        logging.error(f"Failed to initialize Chrome driver: {e}")
-        # Return a more helpful error message
-        raise Exception(f"Chrome driver initialization failed. This often happens on limited resource environments. Error: {e}")
+    service = Service(ChromeDriverManager().install())
+
+    driver = webdriver.Chrome(service=service, options=options)
+    return driver
 
 def navigate_to_nse(driver, url="https://www.nseindia.com/option-chain"):
     """Navigate to the NSE Option Chain page."""
     try:
-        # Add random delay to simulate human behavior
-        time.sleep(random.uniform(1, 3))
-        
         driver.get(url)
-        WebDriverWait(driver, 20).until(
+        WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "table"))
         )
         logging.info("✅ Page loaded successfully!")
-        
-        # Random wait time to allow dynamic content to load fully
-        time.sleep(random.uniform(3, 7))
+        time.sleep(5)  # Allow dynamic content to load
         return True
     except Exception as e:
         logging.error("❌ Error loading page: %s", e)
@@ -165,7 +143,6 @@ def index():
     # Initialize and run the scraper
     driver = setup_driver(headless=True)
     
-    
     data = []
     if navigate_to_nse(driver):
         data = extract_selected_columns(driver)
@@ -228,6 +205,4 @@ def index():
     return render_template_string(html_template, data=data)
 
 if __name__ == "__main__":
-    # Get port from environment variable (Render sets this)
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
