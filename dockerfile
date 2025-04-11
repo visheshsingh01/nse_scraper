@@ -30,5 +30,4 @@ COPY app.py .
 EXPOSE 10000
 
 # Use gunicorn for better performance & dynamic Render port
-CMD exec gunicorn --workers 3 --timeout 120 --bind 0.0.0.0:$PORT app:app
-
+CMD ["gunicorn", "--workers", "1", "--timeout", "120", "--bind", "0.0.0.0:$PORT", "app:app"]

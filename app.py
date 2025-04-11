@@ -165,6 +165,7 @@ def index():
     # Initialize and run the scraper
     driver = setup_driver(headless=True)
     
+    
     data = []
     if navigate_to_nse(driver):
         data = extract_selected_columns(driver)
