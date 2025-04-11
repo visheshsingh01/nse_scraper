@@ -42,8 +42,11 @@ def setup_driver(headless=True):
     random_user_agent = random.choice(user_agents)
     options.add_argument(f"user-agent={random_user_agent}")
 
+    options.binary_location = "/usr/bin/google-chrome"
+
     # ✅ Set up ChromeDriver service correctly
     service = Service(ChromeDriverManager().install())
+
     driver = webdriver.Chrome(service=service, options=options)
 
     return driver
