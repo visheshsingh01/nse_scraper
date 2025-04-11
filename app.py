@@ -146,7 +146,7 @@ def extract_selected_columns(driver):
 @app.route("/")
 def index():
     # Initialize and run the scraper
-    driver = setup_driver(headless=False)
+    driver = setup_driver(headless=True)
     
     data = []
     if navigate_to_nse(driver):
